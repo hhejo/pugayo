@@ -31,8 +31,7 @@ namespace PuGaYo
                 MessageBox.Show("크롤링 중입니다...");
                 return;
             }
-            string username = txtUrl.Text;
-            string url = $"https://www.instagram.com/{username}";
+            string url = $"https://www.instagram.com/{txtUrl.Text}";
             //string url = "https://m.sports.naver.com/wfootball/article/076/0004212491";
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -106,6 +105,7 @@ namespace PuGaYo
                 }
             };
             var browser = await Puppeteer.LaunchAsync(launchOptions);
+
             try
             {
                 var page = await browser.NewPageAsync();
