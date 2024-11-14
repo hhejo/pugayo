@@ -1,55 +1,64 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
 using PuppeteerSharp;
-using System.Net.Http;
 
 namespace PuGaYo
 {
     public partial class Form1 : Form
     {
-        private string imageUrl;
-        private bool isCrawling = false;
+        private bool isSearching = false; // 현재 구글 검색중인지
+        private List<Dictionary<string, string>> searchResults; // 검색 결과 딕셔너리의 리스트
 
         public Form1()
         {
-            InitializeComponent(); // 폼 초기화
-            BtnSave.Enabled = false;
+            InitializeComponent();
         }
 
-        private async void BtnCrawl_Click_1(object sender, EventArgs e)
+        // 검색창 엔터 입력
+        private async void TextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            if (isCrawling)
+            // 엔터키를 누르지 않았거나, 현재 구글 검색중인 경우
+            if (e.KeyCode != Keys.Enter || isSearching)
             {
-                MessageBox.Show("크롤링 중입니다...");
                 return;
             }
-            string url = $"https://www.instagram.com/{txtUrl.Text}";
-            //string url = "https://m.sports.naver.com/wfootball/article/076/0004212491";
-            if (string.IsNullOrWhiteSpace(url))
+
+            // 검색어를 입력하지 않은 경우
+            string query = TextBox.Text; // 검색어
+            if (string.IsNullOrWhiteSpace(query))
             {
-                MessageBox.Show("계정을 입력하세요");
-                isCrawling = false;
                 return;
             }
-            isCrawling = true;
-            MessageBox.Show("크롤링을 시작합니다...");
+
+            InitBeforeSearch();
+
             try
             {
-                imageUrl = await CrawlImageAsync(url);
-                if (string.IsNullOrEmpty(imageUrl)) MessageBox.Show("존재하지 않는 계정이거나 이미지가 없습니다.");
-                else
+                searchResults = await PerformGoogleSearchAsync(query);
+                labelStatus.Text = "드라이버 설정 성공!";
+                await Task.Delay(1500);
+                int currentCount = 0;
+                int maxCount = searchResults.Count;
+                progressBar.Maximum = maxCount - 1;
+                foreach (var searchResult in searchResults)
                 {
-                    pictureBox.Image = await LoadImageAsync(imageUrl);
-                    BtnSave.Enabled = true;
+                    ListViewItem listViewItem = new ListViewItem(searchResult["title"]); // 제목
+                    listViewItem.SubItems.Add($"{currentCount + 1}"); // 번호
+                    listViewItem.SubItems.Add(searchResult["link"]); // 링크
+                    listView.Items.Add(listViewItem); // 리스트뷰에 아이템 추가
+                    progressBar.Value = currentCount;
+                    labelStatus.Text = $"{currentCount} / {maxCount}";
+                    currentCount++;
+                    await Task.Delay(new Random().Next(20, 30));
                 }
+                labelStatus.Text = $"{maxCount}개 검색 완료";
+                BtnSave.Enabled = true;
             }
             catch (Exception ex)
             {
@@ -57,103 +66,143 @@ namespace PuGaYo
             }
             finally
             {
-                isCrawling = false;
+                isSearching = false;
             }
         }
 
-        private async void BtnSave_Click_1(object sender, EventArgs e)
+        // 구글 검색 시작 전 값 초기화
+        private void InitBeforeSearch()
         {
-            if (pictureBox.Image == null) MessageBox.Show("다운로드할 이미지가 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            else
-            {
-                string downloadsFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
-                var filepath = Path.Combine(downloadsFolder, "downloaded_image.jpg");
-                try
-                {
-                    using (HttpClient client = new HttpClient())
-                    {
-                        var uri = new Uri(imageUrl);
-                        var imageBytes = await client.GetByteArrayAsync(uri);
-                        File.WriteAllBytes(filepath, imageBytes);
-                        Console.WriteLine($"이미지가 성공적으로 다운로드되었습니다: {filepath}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"오류 발생: {ex.Message}");
-                }
-                MessageBox.Show("이미지가 성공적으로 다운로드되었습니다.", "다운로드 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            isSearching = true; // 검색중
+            labelQuery.Text = TextBox.Text; // 현재 검색어를 출력
+            TextBox.Text = "";
+            labelStatus.Text = ""; // 상태창
+            progressBar.Value = 0; // 프로그레스바 값 초기화
+            listView.Items.Clear(); // 리스트뷰 아이템 초기화
+            BtnSave.Enabled = false; // 저장 버튼 비활성화
         }
 
-        private async Task<string> CrawlImageAsync(string url)
+        // 구글 검색
+        private async Task<List<Dictionary<string, string>>> PerformGoogleSearchAsync(string query)
+        {
+            labelStatus.Text = "초기 설정중...";
+            // Browser 초기화
+            IBrowser browser = await InitBrowser();
+            // Page 생성
+            var page = await browser.NewPageAsync();
+            string searchUrl = $"https://www.google.com/search?q={Uri.EscapeDataString(query)}"; // 검색 URL
+            await page.GoToAsync(searchUrl); // 해당 URL로 이동
+            // 크롤링 준비
+            List<string> titles = new List<string>();
+            List<string> links = new List<string>();
+            List<Dictionary<string, string>> results = new List<Dictionary<string, string>>();
+            int currentPage = 1;
+            int periodCount = 0;
+            bool hasNextPage = true;
+            while (hasNextPage)
+            {
+                labelStatus.Text = $"드라이버 설정중{string.Concat(Enumerable.Repeat(".", periodCount))}";
+                periodCount = (periodCount + 1) % 5;
+                // h3 태그 내용 가져오기
+                string expression = @"Array.from(document.querySelectorAll('div h3')).map(h3 => h3.innerText);";
+                var texts = await page.EvaluateExpressionAsync<List<string>>(expression);
+                expression = @"Array.from(document.querySelectorAll('a h3')).map(h3 => h3.parentElement.href);";
+                var hrefs = await page.EvaluateExpressionAsync<List<string>>(expression);
+                
+                for (int i = 0; i < texts.Count && i < hrefs.Count; i++)
+                {
+                    var item = new Dictionary<string, string> {{ "title", texts[i] }, { "link", hrefs[i] }};
+                    results.Add(item);
+                }
+
+                // 다음 페이지 탐색
+                expression = @"document.getElementById('pnnext') !== null";
+                hasNextPage = await page.EvaluateExpressionAsync<bool>(expression);
+                if (!hasNextPage)
+                {
+                    break;
+                }
+                // 다음 페이지 이동
+                await page.ClickAsync("#pnnext");
+                await page.WaitForNavigationAsync();
+                await Task.Delay(new Random().Next(300, 500));
+                currentPage++;
+            }
+            return results;
+        }
+
+        // Browser 초기화
+        private async Task<IBrowser> InitBrowser()
         {
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
             var launchOptions = new LaunchOptions
             {
-                ExecutablePath = "C:/Program Files/Google/Chrome/Application/chrome.exe", // Chrome 설치 경로
                 Headless = true,
-                Args = new[]
-                {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-infobars",
-                    "--window-position=0,0",
-                    "--ignore-certificate-errors",
-                    "--ignore-certificate-errors-spki-list",
-                }
+                ExecutablePath = "C:/Program Files/Google/Chrome/Application/chrome.exe"
             };
-            var browser = await Puppeteer.LaunchAsync(launchOptions);
+            IBrowser browser = await Puppeteer.LaunchAsync(launchOptions);
+            return browser;
+        }
 
-            try
+        private void listView_ItemActivate(object sender, EventArgs e)
+        {
+            if (listView.SelectedItems.Count > 0)
             {
-                var page = await browser.NewPageAsync();
-                await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>()
+                var selectedItem = listView.SelectedItems[0];
+                string link = selectedItem.SubItems[2].Text;
+                try
                 {
-                    {"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"},
-                    {"Accept-Encoding", "gzip, deflate, br"},
-                    {"Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"},
-                    {"Cache-Control", "no-cache"},
-                    {"Pragma", "no-cache"}
-                });
-                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                await page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
-                await Task.Delay(new Random().Next(3000, 7000));
-                var client = await page.CreateCDPSessionAsync();
-                await client.SendAsync("Network.clearBrowserCookies");
-                await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle0 } });
-                await Task.Delay(new Random().Next(3000, 7000));
-                //string selector = "#comp_news_article > div > span:nth-child(1) > span > span > img";
-                await page.WaitForSelectorAsync("article img", new WaitForSelectorOptions { Timeout = 5000 });
-                //const firstImage = document.querySelector('#comp_news_article > div > span:nth-child(1) > span > span > img');
-                var imageUrl = await page.EvaluateExpressionAsync<string>(
-                    @"(() => {
-                        const firstImage = document.querySelector('article img');
-                        return firstImage ? firstImage.src : '';
-                    })()");
-                return imageUrl;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                await browser.CloseAsync();
+                    System.Diagnostics.Process.Start("chrome.exe", link);
+                    selectedItem.BackColor = Color.SkyBlue;
+                    selectedItem.ForeColor = Color.White;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"크롬 실행 오류: {ex}");
+                }
             }
         }
 
-        private async Task<Image> LoadImageAsync(string imageUrl)
+        private async Task SaveResultsToCSV(List<Dictionary<string, string>> searchResults, string filepath)
         {
-            using (var client = new System.Net.Http.HttpClient())
+            try
             {
-                var response = await client.GetAsync(imageUrl); // 이미지 다운로드
-                using (var stream = await response.Content.ReadAsStreamAsync())
+                using (StreamWriter writer = new StreamWriter(filepath, false, Encoding.UTF8))
                 {
-                    return Image.FromStream(stream); // 스트림에서 이미지 로드
+                    writer.WriteLine("번호,제목,링크");
+                    int index = 1;
+                    foreach (var searchResult in searchResults)
+                    {
+                        string title = searchResult.ContainsKey("title") ? searchResult["title"] : "";
+                        string link = searchResult.ContainsKey("link") ? searchResult["link"] : "";
+                        writer.WriteLine($"\"{index}\",\"{title}\",\"{link}\"");
+                        index++;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"파일 저장 오류: {ex.Message}");
+            }
+        }
+
+        private async void BtnSave_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("CSV 파일로 저장할까요?", "CSV 파일 저장", MessageBoxButtons.YesNo) == DialogResult.No)
+            {
+                return;
+            }
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "CSV files (*.csv)|*.csv",
+                Title = "Save results to CSV file"
+            };
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string filepath = saveFileDialog.FileName;
+                await SaveResultsToCSV(searchResults, filepath);
+                MessageBox.Show("CSV 파일 저장 성공");
             }
         }
     }
