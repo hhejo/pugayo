@@ -22,23 +22,20 @@
 
 주제
 
-- 오프라인 웹 애플리케이션
-- 간단하게 가계부를 작성하고 관리
-- 지출, 수입 항목을 작성하고 조회
-- 전체, 날짜별, 지출별, 수입별로 항목 조회
-- 총 지출, 수입, 합계 조회
-- 모든 내역을 CSV 파일로 내보내기
+- C# Windows Forms 애플리케이션
+- 구글 검색을 했을 때, 페이지를 넘겨 가며 보는 것이 번거롭다
+- 한번에 결과를 확인하고 싶다
+- 해당 검색어에 대한 결과의 목록을 한번에 볼 수 있게 하는 애플리케이션
+- 리스트 뷰에서 클릭해 해당 링크로 자동 이동
+- 검색 결과는 CSV 파일로 저장할 수도 있음
 
 ## 2. 기술 스택
 
-<!-- JavaScript -->
-<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=JavaScript&logoColor=black">
+<!-- C# -->
+<img src="https://img.shields.io/badge/c%23-68217A?style=for-the-badge&logo=csharp&logoColor=black">
 
-<!-- Vite -->
-<img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=Vite&logoColor=white">
-
-<!-- TailwindCSS -->
-<img src="https://img.shields.io/badge/Tailwindcss-06B6D4?style=for-the-badge&logo=Tailwindcss&logoColor=white">
+<!-- .NET -->
+<img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.NET&logoColor=white">
 
 ## 3. 느낀 점
 
