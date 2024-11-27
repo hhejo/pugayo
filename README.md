@@ -1,6 +1,10 @@
-# PuGaYo
+# 퍼가요 (PuGaYo)
 
 ## 요약
+
+> C#을 이용한 구글 검색 윈도우 데스크탑 앱
+
+![퍼가요 (PuGaYo)](./assets/000-pugayo-main.png)
 
 ## 상세
 
@@ -18,23 +22,27 @@
 
 ## 1. 소개
 
-**PuGaYo**
+**퍼가요 (PuGaYo)**
 
-주제
-
-- `C#` `Windows Forms` 애플리케이션
-- 구글 검색을 했을 때, 번거롭게 페이지를 넘기며 확인하지 않아도 한번에 결과를 볼 수 있는 애플리케이션
+- `C#`을 이용한 구글 검색 윈도우 데스크탑 앱
+- `C#`, `.NET`, `Windows Forms`로 구성
+- 구글 검색을 했을 때, 페이지를 넘겨 가며 보는 것은 번거로움
+- 한번에 결과를 확인하고 싶을 때 사용할 수 있는 애플리케이션
 - `PuppeteerSharp`를 이용해 구글 검색 결과를 가져옴
 - 리스트 뷰에서 클릭해 해당 링크로 자동 이동
 - 검색 결과는 CSV 파일로 저장할 수도 있음
 
+작업 기간
+
+- 2024/11, 1주
+
+인력 구성
+
+- 1인
+
 ## 2. 기술 스택
 
-<!-- C# -->
-<img src="https://img.shields.io/badge/c%23-68217A?style=for-the-badge&logo=csharp&logoColor=black">
-
-<!-- .NET -->
-<img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.NET&logoColor=white">
+<img src="https://img.shields.io/badge/c%23-68217A?style=for-the-badge&logo=csharp&logoColor=black"> <img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.NET&logoColor=white">
 
 ## 3. 느낀 점
 
@@ -63,7 +71,7 @@
 
 시연 영상
 
-- `assets` 폴더 내
+- `assets` 폴더에 위치
 
 ## 5. 아쉬웠던 부분
 
